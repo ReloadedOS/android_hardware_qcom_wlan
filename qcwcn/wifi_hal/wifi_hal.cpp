@@ -41,7 +41,6 @@
 #include <cld80211_lib.h>
 
 #include <sys/types.h>
-#include "list.h"
 #include <unistd.h>
 
 #include "sync.h"
@@ -54,7 +53,6 @@
 #include "cpp_bindings.h"
 #include "ifaceeventhandler.h"
 #include "wifiloggercmd.h"
-#include "tcp_params_update.h"
 
 /*
  BUGBUG: normally, libnl allocates ports for all connections it makes; but
@@ -75,19 +73,6 @@
  */
 #define POLL_DRIVER_DURATION_US (100000)
 #define POLL_DRIVER_MAX_TIME_MS (10000)
-
-static int attach_monitor_sock(wifi_handle handle, wifihal_ctrl_req_t *ctrl_msg);
-
-static int dettach_monitor_sock(wifi_handle handle, wifihal_ctrl_req_t *ctrl_msg);
-
-static int register_monitor_sock(wifi_handle handle, wifihal_ctrl_req_t *ctrl_msg, int attach);
-
-static int send_nl_data(wifi_handle handle, wifihal_ctrl_req_t *ctrl_msg);
-
-static int internal_pollin_handler(wifi_handle handle, struct nl_sock *sock);
-
-static void internal_event_handler_app(wifi_handle handle, int events,
-                                       struct ctrl_sock *sock);
 
 static void internal_event_handler(wifi_handle handle, int events,
                                    struct nl_sock *sock);
@@ -576,12 +561,7 @@ wifi_error init_wifi_vendor_hal_func_table(wifi_hal_fn *fn) {
     fn->wifi_select_tx_power_scenario = wifi_select_tx_power_scenario;
     fn->wifi_reset_tx_power_scenario = wifi_reset_tx_power_scenario;
     fn->wifi_set_radio_mode_change_handler = wifi_set_radio_mode_change_handler;
-    /* Customers will uncomment when they want to set qpower*/
-    //fn->wifi_set_qpower = wifi_set_qpower;
-#ifdef WCNSS_QTI_AOSP
-    fn->wifi_add_or_remove_virtual_intf = wifi_add_or_remove_virtual_intf;
     fn->wifi_set_latency_mode = wifi_set_latency_mode;
-#endif
 
     return WIFI_SUCCESS;
 }
@@ -828,7 +808,7 @@ wifi_error wifi_initialize(wifi_handle *handle)
         }
         ALOGV("%s: hardware version type %d", __func__, info->pkt_log_ver);
     } else {
-        ALOGE("Failed to get firmware version: %d", ret);
+        ALOGE("Failed to get supported logger feature set: %d", ret);
     }
 
     ret = get_firmware_bus_max_size_supported(iface_handle);
@@ -934,8 +914,6 @@ unload:
             wifi_logger_ring_buffers_deinit(info);
             cleanupGscanHandlers(info);
             cleanupRSSIMonitorHandler(info);
-            cleanupRadioHandler(info);
-	    cleanupTCPParamCommand(info);
             free(info->event_cb);
             if (info->driver_supported_features.flags) {
                 free(info->driver_supported_features.flags);
@@ -961,7 +939,6 @@ wifi_error wifi_wait_for_driver_ready(void)
             return WIFI_SUCCESS;
         }
         usleep(POLL_DRIVER_DURATION_US);
-        ALOGE("fopen failed, reason: %s, remaining retry count %d", strerror(errno), count);
     } while(--count > 0);
 
     ALOGE("Timed out wating on Driver ready ... ");
@@ -999,17 +976,6 @@ static void internal_cleaned_up_handler(wifi_handle handle)
         info->event_sock = NULL;
     }
 
-    if (info->wifihal_ctrl_sock.s != 0) {
-        close(info->wifihal_ctrl_sock.s);
-        unlink(info->wifihal_ctrl_sock.local.sun_path);
-        info->wifihal_ctrl_sock.s = 0;
-    }
-
-   list_for_each_entry_safe(reg, tmp, &info->monitor_sockets, list) {
-        del_from_list(&reg->list);
-        free(reg);
-    }
-
     if (info->interfaces) {
         for (int i = 0; i < info->num_interfaces; i++)
             free(info->interfaces[i]);
@@ -1032,6 +998,11 @@ static void internal_cleaned_up_handler(wifi_handle handle)
     cleanupRSSIMonitorHandler(info);
     cleanupRadioHandler(info);
     cleanupTCPParamCommand(info);
+
+    if (info->num_event_cb)
+        ALOGE("%d events were leftover without being freed",
+              info->num_event_cb);
+    free(info->event_cb);
 
     if (info->num_event_cb)
         ALOGE("%d events were leftover without being freed",
@@ -2639,99 +2610,4 @@ static wifi_error wifi_read_packet_filter(wifi_interface_handle handle,
 
     delete vCommand;
     return ret;
-}
-
-class GetSupportedVendorCmd : public WifiCommand
-{
-private:
-    u32 mVendorCmds[256];
-    int mNumOfVendorCmds;
-
-public:
-    GetSupportedVendorCmd(wifi_handle handle) : WifiCommand(handle, 0)
-    {
-        mNumOfVendorCmds = 0;
-        memset(mVendorCmds, 0, 256);
-    }
-
-    virtual wifi_error create() {
-        int nl80211_id = genl_ctrl_resolve(mInfo->cmd_sock, "nl80211");
-        wifi_error ret = mMsg.create(nl80211_id, NL80211_CMD_GET_WIPHY, NLM_F_DUMP, 0);
-
-        return ret;
-    }
-
-    virtual wifi_error requestResponse() {
-        return WifiCommand::requestResponse(mMsg);
-    }
-    virtual wifi_error set_iface_id(const char* name) {
-        unsigned ifindex = if_nametoindex(name);
-        return mMsg.set_iface_id(ifindex);
-    }
-
-    virtual int handleResponse(WifiEvent& reply) {
-        struct nlattr **tb = reply.attributes();
-
-        if (tb[NL80211_ATTR_VENDOR_DATA]) {
-            struct nlattr *nl;
-            int rem, i = 0;
-
-            for_each_attr(nl, tb[NL80211_ATTR_VENDOR_DATA], rem) {
-                struct nl80211_vendor_cmd_info *vinfo;
-                if (nla_len(nl) != sizeof(*vinfo)) {
-                    ALOGE("Unexpected vendor data info found in attribute");
-                    continue;
-                }
-                vinfo = (struct nl80211_vendor_cmd_info *)nla_data(nl);
-                if (vinfo->vendor_id == OUI_QCA) {
-                    mVendorCmds[i] = vinfo->subcmd;
-                    i++;
-                }
-            }
-            mNumOfVendorCmds = i;
-        }
-        return NL_SKIP;
-    }
-
-    int isVendorCmdSupported(u32 cmdId) {
-        int i, ret;
-
-        ret = 0;
-        for (i = 0; i < mNumOfVendorCmds; i++) {
-            if (cmdId == mVendorCmds[i]) {
-                ret = 1;
-                break;
-            }
-        }
-
-        return ret;
-    }
-};
-
-static int wifi_is_nan_ext_cmd_supported(wifi_interface_handle iface_handle)
-{
-    wifi_error ret;
-    wifi_handle handle = getWifiHandle(iface_handle);
-    interface_info *info = getIfaceInfo(iface_handle);
-    GetSupportedVendorCmd cmd(handle);
-
-    ret = cmd.create();
-    if (ret != WIFI_SUCCESS) {
-        ALOGE("%s: create command failed", __func__);
-        return 0;
-    }
-
-    ret = cmd.set_iface_id(info->name);
-    if (ret != WIFI_SUCCESS) {
-        ALOGE("%s: set iface id failed", __func__);
-        return 0;
-    }
-
-    ret = cmd.requestResponse();
-    if (ret != WIFI_SUCCESS) {
-        ALOGE("Failed to query nan_ext command support, ret=%d", ret);
-        return 0;
-    } else {
-        return cmd.isVendorCmdSupported(QCA_NL80211_VENDOR_SUBCMD_NAN_EXT);
-    }
 }

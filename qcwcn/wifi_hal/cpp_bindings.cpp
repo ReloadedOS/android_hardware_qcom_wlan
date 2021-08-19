@@ -928,11 +928,6 @@ s64 WifiVendorCommand::get_s64(const struct nlattr *nla)
     return mMsg.get_s64(nla);
 }
 
-wifi_error WifiVendorCommand::put_ipv6_addr(int attribute, uint8_t value[16])
-{
-    return mMsg.put_ipv6_addr(attribute, value);
-}
-
 wifi_error WifiVendorCommand::put_string(int attribute, const char *value)
 {
     return mMsg.put_string(attribute, value);

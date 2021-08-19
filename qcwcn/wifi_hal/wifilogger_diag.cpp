@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, 2018 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -141,6 +141,7 @@ static wifi_error process_log_extscan_capabilities(hal_info *info,
 
     pRingBufferEntry = (wifi_ring_buffer_entry *)&out_buf[0];
     memset(pRingBufferEntry, 0, SCAN_CAP_ENTRY_SIZE);
+    memset(&cap_vendor_data, 0, sizeof(gscan_capabilities_vendor_data_t));
     pConnectEvent = (wifi_ring_buffer_driver_connectivity_event *)
                      (pRingBufferEntry + 1);
 
@@ -708,6 +709,8 @@ static wifi_error process_roam_event(hal_info *info, u32 id,
 			sizeof(roamCandidateFoundVendata));
             pConnectEvent->event = WIFI_EVENT_ROAM_CANDIDATE_FOUND;
             pRoamCandidateFound = (wlan_roam_candidate_found_payload_type *)buf;
+            memset(&roamCandidateFoundVendata, 0,
+                   sizeof(roam_candidate_found_vendor_data_t));
             pTlv = &pConnectEvent->tlvs[0];
             pTlv = addLoggerTlv(WIFI_TAG_CHANNEL,
                                 sizeof(pRoamCandidateFound->channel),
@@ -1248,17 +1251,11 @@ static void process_wlan_data_stall_event(hal_info *info,
                                           int length)
 {
    wlan_data_stall_event_t *event;
-   int reason_code = 0;
 
    ALOGV("Received Data Stall Event from Driver");
    event = (wlan_data_stall_event_t *)buf;
    ALOGE("Received Data Stall event, sending alert %d", event->reason);
-   if(event->reason >= MAX_EVENT_REASON_CODE)
-       reason_code = 0;
-   else
-       reason_code = event->reason;
-
-   send_alert(info, DATA_STALL_OFFSET_REASON_CODE + reason_code);
+   send_alert(info, DATA_STALL_OFFSET_REASON_CODE + event->reason);
 }
 
 static void process_wlan_low_resource_failure(hal_info *info,
@@ -1320,7 +1317,7 @@ static wifi_error update_stats_to_ring_buf(hal_info *info,
     pRingBufferEntry->timestamp = (u64)time.tv_usec + (u64)time.tv_sec * 1000 * 1000;
 
     // Write if verbose and handler is set
-    if ((info->rb_infos[PKT_STATS_RB_ID].verbose_level >= VERBOSE_DEBUG_PROBLEM)
+    if ((info->rb_infos[PKT_STATS_RB_ID].verbose_level >= VERBOSE_REPRO_PROBLEM)
         && info->on_ring_buffer_data) {
         ring_buffer_write(&info->rb_infos[PKT_STATS_RB_ID],
                           (u8*)pRingBufferEntry,
@@ -2121,7 +2118,7 @@ wifi_error write_per_packet_stats_to_rb(hal_info *info, u8 *buf, u16 length)
     rb_entry_hdr.timestamp = (u64)time.tv_usec + (u64)time.tv_sec * 1000 * 1000;
 
     /* Write if verbose and handler is set */
-    if (info->rb_infos[PKT_STATS_RB_ID].verbose_level >= 3 &&
+    if (info->rb_infos[PKT_STATS_RB_ID].verbose_level >= VERBOSE_REPRO_PROBLEM &&
         info->on_ring_buffer_data) {
         /* Write header and payload separately to avoid
          * complete payload memcpy */
@@ -2299,12 +2296,9 @@ static wifi_error parse_stats_sw_event(hal_info *info,
     u8 *data;
     u8 *node_pkt_data;
     wh_pktlog_hdr_v2_t *pkt_stats_node_header;
-    int node_pkt_type,pkt_sub_type,i;
-    int node_pkt_len = 0;
+    int node_pkt_type,pkt_sub_type,node_pkt_len,i;
     wifi_error status = WIFI_SUCCESS;
     node_pkt_stats node_pkt_t;
-    node_pkt_t.bmap_enqueued = 0;
-    node_pkt_t.bmap_failed = 0;
     wifi_ring_buffer_entry *pRingBufferEntry =
         (wifi_ring_buffer_entry *)info->pkt_stats->tx_stats;
 
@@ -2350,17 +2344,13 @@ static wifi_error parse_stats_sw_event(hal_info *info,
                        node_pkt_t.qos_ctrl = *((u8*)(node_pkt_data + QOS_CTRL_OFFSET));
                        rb_pkt_stats->tid = node_pkt_t.qos_ctrl & 0xF;
                        rb_pkt_stats->MCS = get_tx_mcs_v1(node_pkt_data);
-                       if ((rb_pkt_stats->MCS & INVALID_RATE_CODE) != INVALID_RATE_CODE)
-                           rb_pkt_stats->last_transmit_rate = get_rate_v1(rb_pkt_stats->MCS);
+                       rb_pkt_stats->last_transmit_rate = get_rate_v1(rb_pkt_stats->MCS);
                        node_pkt_t.bmap_failed = *((u64*)(node_pkt_data + BMAP_FAILED_OFFSET));
                        node_pkt_t.bmap_enqueued = *((u64*)(node_pkt_data + BMAP_ENQUEUED_OFFSET));
 
                        info->pkt_stats->tx_stats_events |=  BIT(PKTLOG_TYPE_TX_STAT);
                        rb_pkt_stats->flags |= PER_PACKET_ENTRY_FLAGS_80211_HEADER;
                       }
-                 break;
-                 default:
-                 // TODO: Unexpected PKTLOG types
                  break;
               }
               if (info->pkt_stats->tx_stats_events &  BIT(PKTLOG_TYPE_TX_STAT)) {
@@ -2399,12 +2389,8 @@ static wifi_error parse_stats_sw_event(hal_info *info,
            pkt_stats_len = (pkt_stats_len - (sizeof(wh_pktlog_hdr_v2_t) + node_pkt_len));
            data = (u8*) (data + sizeof(wh_pktlog_hdr_v2_t) + node_pkt_len);
            info->pkt_stats->tx_stats_events = 0;
-        } else {
-            //TODO parsing of unknown packet sub type
-            status = WIFI_ERROR_INVALID_ARGS;
-            break;
         }
-    } while (!info->clean_up && (pkt_stats_len > 0));
+    } while (pkt_stats_len > 0);
     return status;
 }
 
@@ -2436,14 +2422,9 @@ static wifi_error parse_stats_record_v2(hal_info *info,
         pthread_mutex_unlock(&info->pkt_fate_stats_lock);
     } else if (pkt_stats_header->log_type == PKTLOG_TYPE_PKT_SW_EVENT) {
         status = parse_stats_sw_event(info, pkt_stats_header);
-    } else if (pkt_stats_header->log_type == PKTLOG_TYPE_TX_STAT ||
-               pkt_stats_header->log_type == PKTLOG_TYPE_RX_STATBUF ||
-               pkt_stats_header->log_type == PKTLOG_TYPE_LITE_T2H ||
-               pkt_stats_header->log_type == PKTLOG_TYPE_LITE_RX) {
-        //TODO Parsing of per packet log.
-    } else {
-        //No Parsing on Default packet log type.
-    }
+    } else
+        ALOGE("%s: invalid log_type %d",__FUNCTION__, pkt_stats_header->log_type);
+
     return status;
 }
 
@@ -2490,7 +2471,7 @@ static wifi_error parse_stats_record_v1(hal_info *info,
 static wifi_error parse_stats(hal_info *info, u8 *data, u32 buflen)
 {
     wh_pktlog_hdr_t *pkt_stats_header;
-    wh_pktlog_hdr_v2_t *pkt_stats_header_v2_t;
+    wh_pktlog_hdr_v2_t *pkt_stats_header_t;
     wifi_error status = WIFI_SUCCESS;
 
     do {
@@ -2528,20 +2509,34 @@ static wifi_error parse_stats(hal_info *info, u8 *data, u32 buflen)
         }
         /* Pkt_log_V2 based packet parsing */
         if (info->pkt_log_ver == PKT_LOG_V2) {
-            status = parse_stats_record_v2(info, pkt_stats_header_v2_t);
-            if (status != WIFI_SUCCESS) {
-                ALOGE("Failed to parse the stats type : %d",
-                     pkt_stats_header_v2_t->log_type);
-                return status;
-            }
+           pkt_stats_header_t = (wh_pktlog_hdr_v2_t *)data;
+           status = parse_stats_record_v2(info, pkt_stats_header_t);
+           if (status != WIFI_SUCCESS) {
+               ALOGE("Failed to parse the stats type : %d",
+                     pkt_stats_header_t->log_type);
+               return status;
+           }
         /* Pkt_log_V1 based packet parsing */
         } else {
-            status = parse_stats_record_v1(info, pkt_stats_header);
-            if (status != WIFI_SUCCESS) {
-                ALOGE("Failed to parse the stats type : %d",
+           status = parse_stats_record_v1(info, pkt_stats_header);
+           if (status != WIFI_SUCCESS) {
+               ALOGE("Failed to parse the stats type : %d",
                      pkt_stats_header->log_type);
-                return status;
-            }
+               return status;
+           }
+        }
+
+        if (info->pkt_log_ver == PKT_LOG_V2) {
+            data += (sizeof(wh_pktlog_hdr_v2_t) + pkt_stats_header->size);
+            buflen -= (sizeof(wh_pktlog_hdr_v2_t) + pkt_stats_header->size);
+        } else {
+           if (pkt_stats_header->flags & PKT_INFO_FLG_PKT_DUMP_V2){
+               data += (sizeof(wh_pktlog_hdr_v2_t) + pkt_stats_header->size);
+               buflen -= (sizeof(wh_pktlog_hdr_v2_t) + pkt_stats_header->size);
+           } else {
+               data += (sizeof(wh_pktlog_hdr_t) + pkt_stats_header->size);
+               buflen -= (sizeof(wh_pktlog_hdr_t) + pkt_stats_header->size);
+           }
         }
         data += record_len;
         buflen -= record_len;

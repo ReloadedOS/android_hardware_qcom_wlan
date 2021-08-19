@@ -281,10 +281,6 @@ public:
         return *(s64 *) nla_data(nla);
     }
 
-    wifi_error put_ipv6_addr(int attribute, uint8_t *value) {
-        return wifi_nla_put(mMsg, attribute, 16, value);
-    }
-
     wifi_error put_string(int attribute, const char *value) {
         return wifi_nla_put(mMsg, attribute, strlen(value) + 1, value);
     }
@@ -468,8 +464,6 @@ public:
     virtual s16 get_s16(const struct nlattr *nla);
     virtual s32 get_s32(const struct nlattr *nla);
     virtual s64 get_s64(const struct nlattr *nla);
-
-    virtual wifi_error put_ipv6_addr(int attribute, uint8_t value[16]);
 
     virtual wifi_error put_string(int attribute, const char *value);
 

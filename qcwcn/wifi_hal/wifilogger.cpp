@@ -77,7 +77,6 @@ wifi_error wifi_start_logging(wifi_interface_handle iface,
     hal_info *info = getHalInfo(wifiHandle);
     int ring_id = 0;
 
-    /* Check Supported logger capability */
     if (!(info->supported_logger_feature_set & LOGGER_RING_BUFFER)) {
         ALOGE("%s: Ring buffer logging feature not supported %x", __FUNCTION__,
               info->supported_logger_feature_set);
@@ -615,7 +614,6 @@ wifi_error wifi_start_pkt_fate_monitoring(wifi_interface_handle iface)
     wifi_handle wifiHandle = getWifiHandle(iface);
     hal_info *info = getHalInfo(wifiHandle);
 
-    /* Check Supported logger capability */
     if (!(info->supported_logger_feature_set &
           WIFI_LOGGER_PACKET_FATE_SUPPORTED)) {
         ALOGE("%s: packet fate logging feature not supported %x",
@@ -839,7 +837,6 @@ wifi_error wifi_logger_ring_buffers_init(hal_info *info)
 {
     wifi_error ret;
 
-    /* Check Supported logger capability */
     if (!(info->supported_logger_feature_set & LOGGER_RING_BUFFER)) {
         ALOGE("%s: Ring buffer logging feature not supported %x", __FUNCTION__,
               info->supported_logger_feature_set);
@@ -960,7 +957,7 @@ wifi_error WifiLoggerCommand::requestEvent()
 {
     int status;
     wifi_error res = WIFI_SUCCESS;
-    struct nl_cb *cb = NULL;
+    struct nl_cb *cb;
 
     cb = nl_cb_alloc(NL_CB_DEFAULT);
     if (!cb) {

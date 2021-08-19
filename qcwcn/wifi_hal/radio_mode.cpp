@@ -39,41 +39,6 @@
 #include <string.h>
 #include <net/if.h>
 
-/* Used to handle radio command events from driver/firmware. */
-typedef struct radio_event_handler_s {
-    RADIOModeCommand* mRADIOModeCommandInstance;
-} radio_event_handlers;
-
-wifi_error initializeRadioHandler(hal_info *info)
-{
-    info->radio_handlers = (radio_event_handlers *)malloc(
-            sizeof(radio_event_handlers));
-    if (info->radio_handlers) {
-        memset(info->radio_handlers, 0, sizeof(radio_event_handlers));
-    } else {
-        ALOGE("%s: Allocation of radio event handlers failed",
-                __FUNCTION__);
-        return WIFI_ERROR_OUT_OF_MEMORY;
-    }
-    return WIFI_SUCCESS;
-}
-
-wifi_error cleanupRadioHandler(hal_info *info) {
-    radio_event_handlers* event_handlers;
-    if (info && info->radio_handlers) {
-        event_handlers = (radio_event_handlers*) info->radio_handlers;
-        if (event_handlers->mRADIOModeCommandInstance) {
-            delete event_handlers->mRADIOModeCommandInstance;
-        }
-        memset(event_handlers, 0, sizeof(radio_event_handlers));
-        free(info->radio_handlers);
-        info->radio_handlers = NULL;
-        return WIFI_SUCCESS;
-    }
-    ALOGE ("%s: info or info->radio_handlers NULL", __FUNCTION__);
-    return WIFI_ERROR_UNKNOWN;
-}
-
 /* Used to handle radio mode command events from driver/firmware.*/
 void RADIOModeCommand::setCallbackHandler(wifi_radio_mode_change_handler handler)
 {
@@ -106,6 +71,8 @@ RADIOModeCommand::~RADIOModeCommand()
 RADIOModeCommand* RADIOModeCommand::instance(wifi_handle handle,
                                              wifi_request_id id)
 {
+    RADIOModeCommand* mRADIOModeCommandInstance;
+
     if (handle == NULL) {
         ALOGE("Interface Handle is invalid");
         return NULL;
@@ -129,6 +96,12 @@ RADIOModeCommand* RADIOModeCommand::instance(wifi_handle handle,
         instance = info->radio_handlers->mRADIOModeCommandInstance;
     }
     return instance;
+=======
+    mRADIOModeCommandInstance = new RADIOModeCommand(handle, id,
+                OUI_QCA,
+                QCA_NL80211_VENDOR_SUBCMD_WLAN_MAC_INFO);
+    return mRADIOModeCommandInstance;
+>>>>>>> e14ded710ef3fd31177c6030af4f5e9de0458a1b
 }
 
 /* This function will be the main handler for incoming event.
@@ -139,8 +112,8 @@ int RADIOModeCommand::handleEvent(WifiEvent &event)
     wifi_error ret = WIFI_SUCCESS;
     int num_of_mac = 0;
     wifi_mac_info mode_info;
-    memset(&mode_info, 0, sizeof(mode_info));
 
+    memset(&mode_info, 0, sizeof(mode_info));
     WifiVendorCommand::handleEvent(event);
 
     /* Parse the vendordata and get the attribute */
@@ -229,11 +202,9 @@ int RADIOModeCommand::handleEvent(WifiEvent &event)
                                mode_info.iface_info = (wifi_iface_info *)
                                          realloc(mode_info.iface_info, (num_of_iface + 1) * sizeof(wifi_iface_info));
 
-                            if (mode_info.iface_info != NULL) {
-                                memcpy(&mode_info.iface_info[num_of_iface], &miface_info, sizeof(wifi_iface_info));
-                                num_of_iface++;
-                                mode_info.num_iface = num_of_iface;
-                            }
+                            memcpy(&mode_info.iface_info[num_of_iface], &miface_info, sizeof(wifi_iface_info));
+                            num_of_iface++;
+                            mode_info.num_iface = num_of_iface;
                        }
                     }
                     if (!num_of_mac)
@@ -243,10 +214,8 @@ int RADIOModeCommand::handleEvent(WifiEvent &event)
                        mwifi_iface_mac_info = (wifi_mac_info *)
                           realloc(mwifi_iface_mac_info, (num_of_mac + 1) * (sizeof(wifi_mac_info)));
 
-                    if (mwifi_iface_mac_info != NULL) {
-                        memcpy(&mwifi_iface_mac_info[num_of_mac], &mode_info, sizeof(wifi_mac_info));
-                        num_of_mac++;
-                    }
+                    memcpy(&mwifi_iface_mac_info[num_of_mac], &mode_info, sizeof(wifi_mac_info));
+                    num_of_mac++;
                 }
             }
 

@@ -58,6 +58,9 @@
 #define PKTLOG_TYPE_LITE_RX         24   //PPDU Level Rx pktlog stats
 
 
+/* Based on pkt log V2, this type of event will triggered */
+#define PKTLOG_TYPE_PKT_SW_EVENT    10
+
 #define PKT_INFO_FLG_TX_LOCAL_S          0x1
 #define PKT_INFO_FLG_RX_HOST_RXD         0x2
 #define PKT_INFO_FLG_TX_REMOTE_S         0x4

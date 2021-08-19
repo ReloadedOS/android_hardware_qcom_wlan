@@ -74,10 +74,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define WCNSS_FACT_FILE "/data/vendor/wifi/WCN_FACTORY"
 #define WCNSS_DEVICE    "/dev/wcnss_wlan"
 #define WCNSS_CTRL      "/dev/wcnss_ctrl"
-#ifdef WCNSS_COPY_CONFIG
 #define WLAN_INI_FILE_DEST   "/data/vendor/wifi/WCNSS_qcom_cfg.ini"
 #define WLAN_INI_FILE_SOURCE "/vendor/etc/wifi/WCNSS_qcom_cfg.ini"
-#endif
 #define WCNSS_HAS_CAL_DATA\
 		"/sys/module/wcnsscore/parameters/has_calibrated_data"
 #define WLAN_DRIVER_ATH_DEFAULT_VAL "0"
@@ -420,7 +418,7 @@ void setup_wcnss_parameters(int *cal)
 		return;
 	}
 
-#if defined(WCNSS_QMI) || defined (WCNSS_QMI_OSS)
+#ifdef WCNSS_QMI
 	if (SUCCESS == nv_mac_addr)
 	{
 		pos = 0;

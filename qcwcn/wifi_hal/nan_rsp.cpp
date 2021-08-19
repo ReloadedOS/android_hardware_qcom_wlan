@@ -350,7 +350,7 @@ void NanCommand::NanErrorTranslation(NanInternalStatusType firmwareErrorRecvd,
     char tlvInfo[NAN_ERROR_STR_LEN];
     tlvInfo[0] = '\0';
 
-    if ((is_ndp_rsp == true) || isNanResponse()) {
+    if (isNanResponse() || (is_ndp_rsp == true)){
         pRsp = (NanResponseMsg*)pResponse;
         for (i = 0; i < (int)(sizeof(errorCodeTranslation)/ sizeof(errorCode)); i++) {
             if (errorCodeTranslation[i].firmwareError == firmwareErrorRecvd) {
@@ -609,6 +609,8 @@ int NanCommand::getNanResponse(transaction_id *id, NanResponseMsg *pRsp)
                        pFwRsp->max_sdea_service_specific_info_len;
             pRsp->body.nan_capabilities.max_subscribe_address = \
                        pFwRsp->max_subscribe_address;
+            pRsp->body.nan_capabilities.ndpe_attr_supported = \
+                       pFwRsp->ndpe_attr_supported;
             break;
         }
         default:

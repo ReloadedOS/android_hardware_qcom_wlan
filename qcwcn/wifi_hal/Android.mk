@@ -51,6 +51,9 @@ LOCAL_CLANG_CFLAGS := -Wno-pointer-bool-conversion
 
 LOCAL_CFLAGS += -Wall -Werror
 
+# Allow implicit fallthrough in nan_ind.cpp:834 until it is fixed.
+LOCAL_CFLAGS += -Wno-error=implicit-fallthrough
+
 LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH) \
 	external/libnl/include \
@@ -81,9 +84,7 @@ LOCAL_SRC_FILES := \
 	rb_wrapper.cpp \
 	rssi_monitor.cpp \
 	roam.cpp \
-	radio_mode.cpp \
-	tcp_params_update.cpp \
-	wifihal_vendor.cpp
+	radio_mode.cpp
 
 LOCAL_MODULE := libwifi-hal-qcom
 LOCAL_VENDOR_MODULE := true
@@ -98,9 +99,7 @@ LOCAL_SHARED_LIBRARIES += libnl_2
 LOCAL_C_INCLUDES += external/libnl-headers
 endif
 
-LOCAL_HEADER_LIBRARIES := libcutils_headers libutils_headers libwifi-hal-ctrl_headers
-LOCAL_HEADER_LIBRARIES += generated_kernel_headers
-LOCAL_SANITIZE := cfi signed-integer-overflow unsigned-integer-overflow
+LOCAL_HEADER_LIBRARIES := libcutils_headers libutils_headers
 
 include $(BUILD_STATIC_LIBRARY)
 
@@ -121,6 +120,9 @@ endif
 # gscan.cpp: address of array 'cached_results[i].results' will always evaluate to 'true'
 LOCAL_CLANG_CFLAGS := -Wno-pointer-bool-conversion
 
+# Allow implicit fallthrough in nan_ind.cpp:834 until it is fixed.
+LOCAL_CFLAGS += -Wno-error=implicit-fallthrough
+
 LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH) \
 	external/libnl/include \
@@ -151,9 +153,7 @@ LOCAL_SRC_FILES := \
 	rb_wrapper.cpp \
 	rssi_monitor.cpp \
 	roam.cpp \
-	radio_mode.cpp \
-	tcp_params_update.cpp \
-	wifihal_vendor.cpp
+	radio_mode.cpp
 
 LOCAL_CFLAGS += -Wall -Werror
 LOCAL_MODULE := libwifi-hal-qcom
@@ -171,7 +171,5 @@ LOCAL_SHARED_LIBRARIES += libnl_2
 LOCAL_C_INCLUDES += external/libnl-headers
 endif
 
-LOCAL_HEADER_LIBRARIES := libcutils_headers libutils_headers libwifi-hal-ctrl_headers
-LOCAL_HEADER_LIBRARIES += generated_kernel_headers
-LOCAL_SANITIZE := cfi integer_overflow
+LOCAL_HEADER_LIBRARIES := libcutils_headers libutils_headers
 include $(BUILD_SHARED_LIBRARY)

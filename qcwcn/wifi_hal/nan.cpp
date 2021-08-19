@@ -713,11 +713,6 @@ wifi_error nan_debug_command_config(transaction_id id,
     wifi_handle wifiHandle = getWifiHandle(iface);
     hal_info *info = getHalInfo(wifiHandle);
 
-    if (info == NULL) {
-        ALOGE("%s: Error hal_info NULL", __FUNCTION__);
-        return WIFI_ERROR_UNKNOWN;
-    }
-
     if (debug_msg_length <= 0) {
         ALOGE("%s: Invalid debug message length = %d", __FUNCTION__,
                                                        debug_msg_length);
@@ -727,8 +722,6 @@ wifi_error nan_debug_command_config(transaction_id id,
     nanCommand = new NanCommand(wifiHandle,
                                 0,
                                 OUI_QCA,
-                                info->support_nan_ext_cmd?
-                                QCA_NL80211_VENDOR_SUBCMD_NAN_EXT :
                                 QCA_NL80211_VENDOR_SUBCMD_NAN);
     if (nanCommand == NULL) {
         ALOGE("%s: Error NanCommand NULL", __FUNCTION__);

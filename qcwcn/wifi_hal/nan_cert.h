@@ -112,31 +112,6 @@ typedef enum {
     NAN_NDP_ATTR_PRESENT = 1
 } NanNdpAttrType;
 
-/* NAN IPV6 implicit or explicit */
-typedef enum {
-   NAN_IPV6_EXPLICIT = 0,
-   NAN_IPV6_IMPLICIT = 1
-} NanIPv6Type;
-
-/* NAN IPV6 address, port number and protocol type */
-#define NAN_MSG_IPV6_INTF_ADDR_LEN    16
-
-typedef struct PACKED
-{
-    /* Presence of ipv6_intf_addr */
-    u32 ipv6_addr_present;
-    /* Presence of transport Port */
-    u32 trans_port_present;
-    /* Presence of  transport Protocol */
-    u32 trans_proto_present;
-    /* ipv6 Interface address */
-    u8  ipv6_intf_addr[NAN_MSG_IPV6_INTF_ADDR_LEN];
-    /* Transport Port */
-    u32 transport_port;
-    /* Transport Protocol */
-    u32 transport_protocol;
-} NdpIpTransParams, *pNdpIpTransParams;
-
  /*
   * Definitions of debug subcommand type for the
   * generic debug command.
@@ -158,8 +133,6 @@ typedef enum {
     NAN_TEST_MODE_CMD_DEVICE_TYPE = 14,
     NAN_TEST_MODE_CMD_DISABLE_NDPE = 15,
     NAN_TEST_MODE_CMD_ENABLE_NDP = 16,
-    NAN_TEST_MODE_CMD_DISABLE_IPV6_LINK_LOCAL = 17,
-    NAN_TEST_MODE_CMD_TRANSPORT_IP_PARAM = 18,
 } NanDebugModeCmd;
 
 /*

@@ -19,9 +19,6 @@
 #include "common.h"
 #include "roamcommand.h"
 
-#define WLAN_ROAM_MAX_NUM_WHITE_LIST 4
-#define WLAN_ROAM_MAX_NUM_BLACK_LIST 16
-
 RoamCommand::RoamCommand(wifi_handle handle, int id, u32 vendor_id, u32 subcmd)
         : WifiVendorCommand(handle, id, vendor_id, subcmd)
 {

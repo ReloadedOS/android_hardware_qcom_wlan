@@ -174,7 +174,6 @@ typedef struct hal_info_s {
     wifi_capa capa;
     struct cld80211_ctx *cldctx;
     bool apf_enabled;
-    bool support_nan_ext_cmd;
     pkt_log_version  pkt_log_ver;
 } hal_info;
 
@@ -201,8 +200,8 @@ wifi_error cleanupRadioHandler(hal_info *info);
 lowi_cb_table_t *getLowiCallbackTable(u32 requested_lowi_capabilities);
 
 wifi_error wifi_start_sending_offloaded_packet(wifi_request_id id,
-        wifi_interface_handle iface, u8 *ip_packet, u16 ip_packet_len,
-        u8 *src_mac_addr, u8 *dst_mac_addr, u32 period_msec);
+        wifi_interface_handle iface, u16 ether_type, u8 *ip_packet,
+        u16 ip_packet_len, u8 *src_mac_addr, u8 *dst_mac_addr, u32 period_msec);
 wifi_error wifi_stop_sending_offloaded_packet(wifi_request_id id,
         wifi_interface_handle iface);
 wifi_error wifi_start_rssi_monitoring(wifi_request_id id, wifi_interface_handle
@@ -211,11 +210,6 @@ wifi_error wifi_stop_rssi_monitoring(wifi_request_id id, wifi_interface_handle i
 wifi_error wifi_set_radio_mode_change_handler(wifi_request_id id, wifi_interface_handle
         iface, wifi_radio_mode_change_handler eh);
 wifi_error mapKernelErrortoWifiHalError(int kern_err);
-#ifdef WCNSS_QTI_AOSP
-wifi_error wifi_add_or_remove_virtual_intf(wifi_interface_handle iface,
-                                           const char* ifname, u32 iface_type,
-                                           bool create);
-#endif
 // some common macros
 
 #define min(x, y)       ((x) < (y) ? (x) : (y))
